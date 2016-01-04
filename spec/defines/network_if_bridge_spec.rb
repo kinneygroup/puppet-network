@@ -2,25 +2,25 @@
 
 require 'spec_helper'
 
-describe 'network::bond::slave', :type => 'define' do
+describe 'network::if::bridge', :type => 'define' do
 
-  context 'incorrect value: ipaddress' do
-    let(:title) { 'eth6' }
+  context 'incorrect value: ensure' do
+    let(:title) { 'eth77' }
     let :params do {
-      :macaddress => '123456',
-      :master     => 'bond0',
+      :ensure => 'blah',
+      :bridge => 'br0',
     }
     end
     it 'should fail' do
-      expect {should contain_file('ifcfg-eth6')}.to raise_error(Puppet::Error, /123456 is not a MAC address./)
+      expect {should contain_file('ifcfg-eth77')}.to raise_error(Puppet::Error, /\$ensure must be either "up" or "down"./)
     end
   end
 
   context 'required parameters' do
     let(:title) { 'eth1' }
     let :params do {
-      :macaddress => 'fe:fe:fe:aa:aa:a1',
-      :master     => 'bond0',
+      :ensure => 'up',
+      :bridge => 'br0',
     }
     end
     let :facts do {
@@ -39,10 +39,12 @@ describe 'network::bond::slave', :type => 'define' do
     it 'should contain File[ifcfg-eth1] with required contents' do
       verify_contents(catalogue, 'ifcfg-eth1', [
         'DEVICE=eth1',
-        'HWADDR=fe:fe:fe:aa:aa:a1',
-        'MASTER=bond0',
-        'SLAVE=yes',
+        'BOOTPROTO=none',
+        'ONBOOT=yes',
+        'HOTPLUG=yes',
         'TYPE=Ethernet',
+        'PEERDNS=no',
+        'BRIDGE=br0',
         'NM_CONTROLLED=no',
       ])
     end
@@ -50,34 +52,37 @@ describe 'network::bond::slave', :type => 'define' do
   end
 
   context 'optional parameters' do
-    let(:title) { 'eth3' }
+    let(:title) { 'eth1' }
     let :params do {
-      :macaddress   => 'ef:ef:ef:ef:ef:ef',
-      :master       => 'bond0',
+      :ensure       => 'down',
+      :bridge       => 'br55',
+      :mtu          => '9000',
       :ethtool_opts => 'speed 1000 duplex full autoneg off',
     }
     end
     let :facts do {
       :osfamily        => 'RedHat',
-      :macaddress_eth3 => 'fe:fe:fe:aa:aa:aa',
+      :macaddress_eth1 => 'fe:fe:fe:aa:aa:aa',
     }
     end
-    it { should contain_file('ifcfg-eth3').with(
+    it { should contain_file('ifcfg-eth1').with(
       :ensure => 'present',
       :mode   => '0644',
       :owner  => 'root',
       :group  => 'root',
-      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth3',
+      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth1',
       :notify => 'Service[network]'
     )}
-    it 'should contain File[ifcfg-eth3] with required contents' do
-      verify_contents(catalogue, 'ifcfg-eth3', [
-        'DEVICE=eth3',
-        'HWADDR=ef:ef:ef:ef:ef:ef',
-        'MASTER=bond0',
-        'SLAVE=yes',
+    it 'should contain File[ifcfg-eth1] with required contents' do
+      verify_contents(catalogue, 'ifcfg-eth1', [
+        'DEVICE=eth1',
+        'BOOTPROTO=none',
+        'ONBOOT=no',
+        'HOTPLUG=no',
         'TYPE=Ethernet',
+        'MTU=9000',
         'ETHTOOL_OPTS="speed 1000 duplex full autoneg off"',
+        'BRIDGE=br55',
         'NM_CONTROLLED=no',
       ])
     end

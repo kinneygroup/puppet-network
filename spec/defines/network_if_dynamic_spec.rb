@@ -22,6 +22,7 @@ describe 'network::if::dynamic', :type => 'define' do
     }
     end
     let :facts do {
+      :osfamily         => 'RedHat',
       :macaddress_eth99 => 'ff:aa:ff:aa:ff:aa',
     }
     end
@@ -30,10 +31,11 @@ describe 'network::if::dynamic', :type => 'define' do
       :mode   => '0644',
       :owner  => 'root',
       :group  => 'root',
-      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth99'
+      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth99',
+      :notify => 'Service[network]'
     )}
     it 'should contain File[ifcfg-eth99] with required contents' do
-      verify_contents(subject, 'ifcfg-eth99', [
+      verify_contents(catalogue, 'ifcfg-eth99', [
         'DEVICE=eth99',
         'BOOTPROTO=dhcp',
         'HWADDR=ff:aa:ff:aa:ff:aa',
@@ -43,23 +45,26 @@ describe 'network::if::dynamic', :type => 'define' do
         'NM_CONTROLLED=no',
       ])
     end
-    it { should contain_exec('ifup-eth99').with(
-      :command     => '/sbin/ifdown eth99; /sbin/ifup eth99',
-      :refreshonly => true
-    )}
+    it { should contain_service('network') }
   end
 
   context 'optional parameters' do
     let(:title) { 'eth99' }
     let :params do {
-      :ensure       => 'down',
-      :macaddress   => 'ef:ef:ef:ef:ef:ef',
-      :bootproto    => 'bootp',
-      :mtu          => '1500',
-      :ethtool_opts => 'speed 100 duplex full autoneg off',
+      :ensure          => 'down',
+      :macaddress      => 'ef:ef:ef:ef:ef:ef',
+      :bootproto       => 'bootp',
+      :userctl         => true,
+      :mtu             => '1500',
+      :dhcp_hostname   => 'hostname',
+      :ethtool_opts    => 'speed 100 duplex full autoneg off',
+      :peerdns         => true,
+      :linkdelay       => '5',
+      :check_link_down => true,
     }
     end
     let :facts do {
+      :osfamily         => 'RedHat',
       :macaddress_eth99 => 'ff:aa:ff:aa:ff:aa',
     }
     end
@@ -68,10 +73,11 @@ describe 'network::if::dynamic', :type => 'define' do
       :mode   => '0644',
       :owner  => 'root',
       :group  => 'root',
-      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth99'
+      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth99',
+      :notify => 'Service[network]'
     )}
     it 'should contain File[ifcfg-eth99] with required contents' do
-      verify_contents(subject, 'ifcfg-eth99', [
+      verify_contents(catalogue, 'ifcfg-eth99', [
         'DEVICE=eth99',
         'BOOTPROTO=bootp',
         'HWADDR=ef:ef:ef:ef:ef:ef',
@@ -79,14 +85,44 @@ describe 'network::if::dynamic', :type => 'define' do
         'HOTPLUG=no',
         'TYPE=Ethernet',
         'MTU=1500',
+        'DHCP_HOSTNAME="hostname"',
         'ETHTOOL_OPTS="speed 100 duplex full autoneg off"',
+        'USERCTL=yes',
+        'LINKDELAY=5',
         'NM_CONTROLLED=no',
       ])
     end
-    it { should contain_exec('ifdown-eth99').with(
-      :command     => '/sbin/ifdown eth99',
-      :refreshonly => true
+    it { should contain_service('network') }
+  end
+
+  context 'optional parameters - vlan' do
+    let(:title) { 'eth45.302' }
+    let(:params) {{ :ensure => 'up' }}
+    let :facts do {
+      :osfamily         => 'RedHat',
+      :macaddress_eth45 => 'bb:cc:bb:cc:bb:cc',
+    }
+    end
+    it { should contain_file('ifcfg-eth45.302').with(
+      :ensure => 'present',
+      :mode   => '0644',
+      :owner  => 'root',
+      :group  => 'root',
+      :path   => '/etc/sysconfig/network-scripts/ifcfg-eth45.302',
+      :notify => 'Service[network]'
     )}
+    it 'should contain File[ifcfg-eth45.302] with required contents' do
+      verify_contents(catalogue, 'ifcfg-eth45.302', [
+        'DEVICE=eth45.302',
+        'BOOTPROTO=dhcp',
+        'HWADDR=bb:cc:bb:cc:bb:cc',
+        'ONBOOT=yes',
+        'HOTPLUG=yes',
+        'TYPE=Ethernet',
+        'NM_CONTROLLED=no',
+      ])
+    end
+    it { should contain_service('network') }
   end
 
 end
